@@ -1,0 +1,93 @@
+package com.dc.wanandroid.ui.components
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.FractionalThreshold
+import androidx.compose.material.ResistanceConfig
+import androidx.compose.material.rememberSwipeableState
+import androidx.compose.material.swipeable
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlin.math.roundToInt
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun SwipeableListItem(
+    modifier: Modifier = Modifier,
+    onDeleteClick: () -> Unit,
+    mainContent: @Composable BoxScope.(width: Float) -> Unit,
+    dismissContent: @Composable BoxScope.(width: Float) -> Unit
+) = BoxWithConstraints {
+    val coroutineScope = rememberCoroutineScope()
+    val swipeableState = rememberSwipeableState(initialValue = SwipeDirection.Right)
+    val width = constraints.maxWidth.toFloat()
+    val height = constraints.maxHeight.toFloat()
+    val divide = 3
+//    LogUtils.eTag("width", width.toString())
+//    LogUtils.eTag("height", height.toString())
+    Box(
+        modifier = modifier.then(
+            Modifier.height(IntrinsicSize.Max)//IntrinsicSize.Max之后右边组件终于可以正确显示高度！！！
+                .swipeable(
+                    state = swipeableState,
+                    anchors = mapOf(
+                        0f to SwipeDirection.Left,
+                        width / divide to SwipeDirection.Right
+                    ),
+                    thresholds = { _, _ -> FractionalThreshold(0.3f) },
+                    orientation = Orientation.Horizontal,
+
+                    resistance = ResistanceConfig(
+                        basis = width
+                    )
+                )
+        )
+    ) {
+        Box(
+            modifier = Modifier.offset {
+                IntOffset(
+                    (swipeableState.offset.value - width / divide).roundToInt(),
+                    0
+                )
+            }.width((width / LocalDensity.current.density).dp)
+                .fillMaxHeight()
+        ) {
+            mainContent(width / LocalDensity.current.density)
+        }
+        Box(
+            modifier = Modifier.offset {
+                IntOffset(
+                    (swipeableState.offset.value + (width * 2 / divide)).roundToInt(),
+                    0
+                )
+            }
+                .width(((width / LocalDensity.current.density) / divide).dp)
+                .fillMaxHeight()
+                .clickable {
+                    runBlocking {
+                        onDeleteClick()
+                        coroutineScope.launch { swipeableState.animateTo(SwipeDirection.Right) }
+                    }
+                }
+        ) {
+            dismissContent(width / (divide * LocalDensity.current.density))
+        }
+    }
+}
+
+enum class SwipeDirection { Left, Right }
